@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- The character encoding for the HTML document -->
+    <meta charset="UTF-8">
+    <!-- Ensures the page is responsive on mobile devices -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Translation</title>
+    <!-- CSS styles for light and dark themes -->
+    <style>
+        /* Default light theme variables */
+        :root {
+            --background-color: #ffffff;
+            --text-color: #000000;
+            --card-background: #f8f9fa;
+            --card-border: #ddd;
+            --button-background: #007bff;
+            --button-hover: #0056b3;
+        }
+
+        /* Dark theme variables set when the data-theme attribute is "dark" */
+        [data-theme="dark"] {
+            --background-color: #121212;
+            --text-color: #ffffff;
+            --card-background: #1e1e1e;
+            --card-border: #333;
+            --button-background: #1a73e8;
+            --button-hover: #1557b0;
+        }
+
+        /* Global body styles */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        /* Container to center content */
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Card style used for the form and messages */
+        .card {
+            background-color: var(--card-background);
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Style for form groups (labels and inputs) */
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        /* Label styles */
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--text-color);
+        }
+
+        /* Input and select element styling */
+        input, select {
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            border: 1px solid var(--card-border);
+            border-radius: 5px;
+            background-color: var(--background-color);
+            color: var(--text-color);
+        }
+
+        /* Button styling */
+        button {
+            padding: 10px 20px;
+            background-color: var(--button-background);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 16px;
+        }
+
+        /* Button hover state styling */
+        button:hover {
+            background-color: var(--button-hover);
+        }
+
+        /* Styling for flashed messages */
+        .message {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: var(--card-background);
+            border: 1px solid var(--card-border);
+            border-radius: 5px;
+            color: var(--text-color);
+        }
+
+        /* Link styling within messages */
+        .message a {
+            color: var(--button-background);
+            text-decoration: none;
+        }
+
+        /* Hover state for links */
+        .message a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <!-- Main container for the content -->
+    <div class="container">
+        <!-- Card container for the upload form -->
+        <div class="card">
+            <h1>Document Translation</h1>
+            <!-- The form using POST method with enctype to handle file uploads -->
+            <form method="post" enctype="multipart/form-data">
+                <!-- File upload field -->
+                <div class="form-group">
+                    <label for="file">Upload File:</label>
+                    <!-- Accept only DOCX, PPTX, and XLSX files -->
+                    <input type="file" id="file" name="file" accept=".docx,.pptx,.xlsx" required>
+                </div>
+                <!-- Dropdown selection for target language -->
+                <div class="form-group">
+                    <label for="target_language">Target Language:</label>
+                    <select id="target_language" name="target_language" required>
+                        {% for lang in languages %}
+                            <option value="{{ lang }}">{{ lang }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <!-- Dropdown selection for choosing the AI model -->
+                <div class="form-group">
+                    <label for="ai_model">AI Model:</label>
+                    <!-- Hardcoded option for Azure OpenAI -->
+                    <select id="ai_model" name="ai_model" required>
+                        <option value="Azure OpenAI">Azure OpenAI</option>
+                        <!-- Group label for better UI separation -->
+                        <optgroup label="Ollama Models">
+                        {% for model_group in ai_models %}
+                            {% if model_group.type == 'ollama' %}
+                                {% for model in model_group.models %}
+                                    <option value="{{ model }}">{{ model }}</option>
+                                {% endfor %}
+                            {% endif %}
+                        {% endfor %}
+                        </optgroup>
+                    </select>
+                </div>
+                <!-- Submit button for triggering file translation -->
+                <button type="submit">Translate File</button>
+            </form>
+        </div>
+
+        <!-- Section for displaying flashed messages (errors, language detected, success messages) -->
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="card message">
+                    {% for message in messages %}
+                        {{ message }}
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- If a translated file exists, show a download link -->
+        {% if translated_file %}
+            <div class="card message">
+                <a href="{{ url_for('download_file', filename=translated_file) }}">Download Translated File</a>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- JavaScript to adjust the theme based on the user's system color scheme -->
+    <script>
+        // Check user's preferred color scheme (dark/light)
+        const prefersDarkScheme = window.matchMedia("(prefers-color-scheme: dark)");
+
+        // Set initial theme based on the system preference
+        if (prefersDarkScheme.matches) {
+            document.documentElement.setAttribute('data-theme', 'dark');
+        } else {
+            document.documentElement.setAttribute('data-theme', 'light');
+        }
+
+        // Listen for changes in the system color scheme and update the theme accordingly
+        prefersDarkScheme.addEventListener('change', (e) => {
+            if (e.matches) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            } else {
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        });
+    </script>
+</body>
+</html>
