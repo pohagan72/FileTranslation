@@ -7,3 +7,4 @@ langdetect
 python-dotenv
 google-generativeai
 google-cloud-storage
+gunicorn
