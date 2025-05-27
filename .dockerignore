@@ -1,0 +1,30 @@
+# Ignore Python cache directories
+__pycache__/
+*.pyc
+
+# Ignore virtual environments
+venv/
+.venv/
+
+# Ignore Git specific files
+.git/
+.gitignore
+
+# Ignore IDE specific files
+.vscode/
+.idea/
+
+# Ignore the local .env file
+# Environment variables and secrets should be configured in Cloud Run service settings
+.env
+
+# Ignore any temporary files saved locally (if you were doing that before GCS)
+# temp_files/
+# uploads/
+# downloads/
+
+# If using filesystem sessions locally, ignore the session directory
+# ./flask_session/
+
+# Dockerfile itself
+Dockerfile
