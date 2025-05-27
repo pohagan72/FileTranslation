@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <!-- Ensures the page is responsive on mobile devices -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document Translation</title>
+    <title>Document Translation (Gemini Only)</title> <!-- Updated title -->
     <!-- CSS styles for light and dark themes -->
     <style>
         /* Default light theme variables */
@@ -76,6 +76,13 @@
             color: var(--text-color);
         }
 
+         select:disabled {
+            background-color: #e9ecef; /* Light grey */
+            color: #6c757d; /* Darker grey */
+            cursor: not-allowed;
+         }
+
+
         /* Button styling */
         button {
             padding: 10px 20px;
@@ -141,23 +148,24 @@
                 <!-- Dropdown selection for choosing the AI model -->
                 <div class="form-group">
                     <label for="ai_model">AI Model:</label>
-                    <!-- Hardcoded option for Azure OpenAI -->
-                    <select id="ai_model" name="ai_model" required>
-                        <option value="Azure OpenAI">Azure OpenAI</option>
-                        <!-- Group label for better UI separation -->
-                        <optgroup label="Ollama Models">
+                    <select id="ai_model" name="ai_model" required {% if not ai_models or ai_models[0].models[0].disabled %}disabled{% endif %}>
+                         {# Loop through model groups (should only be one for Google) #}
                         {% for model_group in ai_models %}
-                            {% if model_group.type == 'ollama' %}
-                                {% for model in model_group.models %}
-                                    <option value="{{ model }}">{{ model }}</option>
-                                {% endfor %}
-                            {% endif %}
+                            <optgroup label="{{ model_group.label }}">
+                            {% for model_info in model_group.models %}
+                                <option value="{{ model_info.value }}" {% if model_info.disabled %}disabled{% endif %}>{{ model_info.text }}</option>
+                            {% endfor %}
+                            </optgroup>
                         {% endfor %}
-                        </optgroup>
+                         {# Add a default option if no models are configured #}
+                         {% if not ai_models %}
+                             <option value="none" disabled selected>No AI Models Configured (Check .env)</option>
+                         {% endif %}
+
                     </select>
                 </div>
-                <!-- Submit button for triggering file translation -->
-                <button type="submit">Translate File</button>
+                 {# Disable the submit button if no models are available #}
+                <button type="submit" {% if not ai_models or ai_models[0].models[0].disabled %}disabled{% endif %}>Translate File</button>
             </form>
         </div>
 

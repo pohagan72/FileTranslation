@@ -1,0 +1,8 @@
+Flask
+python-docx
+python-pptx
+pandas
+requests
+langdetect
+python-dotenv
+google-generativeai
