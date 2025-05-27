@@ -123,24 +123,8 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="form-group">
-                    <label for="ai_model">AI Model:</label>
-                    <select id="ai_model" name="ai_model" required {% if not ai_models or ai_models[0].models[0].disabled %}disabled{% endif %}>
-                         {% for model_group in ai_models %}
-                            <optgroup label="{{ model_group.label }}">
-                            {% for model_info in model_group.models %}
-                                <option value="{{ model_info.value }}" {% if model_info.disabled %}disabled{% endif %}>{{ model_info.text }}</option>
-                            {% endfor %}
-                            </optgroup>
-                        {% endfor %}
-                         {% if not ai_models %}
-                             <option value="none" disabled selected>No AI Models Configured (Check .env)</option>
-                         {% endif %}
 
-                    </select>
-                </div>
-                 {# Disable the submit button if no models are available #}
-                <button type="submit" {% if not ai_models or ai_models[0].models[0].disabled %}disabled{% endif %}>Translate File</button>
+                <button type="submit">Translate File</button>
             </form>
         </div>
 
@@ -154,7 +138,6 @@
             {% endif %}
         {% endwith %}
 
-        {# Download link: translated_file is the filename (safe) #}
         {% if translated_file %}
             <div class="card message">
                 <a href="{{ url_for('download_file', filename=translated_file) }}">Download Translated File</a>
