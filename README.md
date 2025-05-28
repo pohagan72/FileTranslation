@@ -1,6 +1,6 @@
-# FileTranslation - AI-Powered Document Translation Service
+# Native File Translation - AI-Powered Document Translation Service
 
-This project delivers a web-based solution for translating text content within common business document formats: Microsoft Word (.docx), PowerPoint (.pptx), and Excel (.xlsx). Leveraging Google's Generative AI capabilities via the Gemini API and Google Cloud Storage for efficient file handling, this service provides a streamlined approach to document localization.
+This project delivers a web-based solution for translating text content within common business document formats: Microsoft Word (.docx), PowerPoint (.pptx), and Excel (.xlsx). The LLM being used is Google Gemini.
 
 ## Key Capabilities
 
