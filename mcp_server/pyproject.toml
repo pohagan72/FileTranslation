@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "filetranslation-mcp"
+version = "0.1.0"
+description = "MCP server exposing the FileTranslation service as agent tools."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "FileTranslation contributors" }]
+
+# Runtime deps are deliberately small. The local mode imports `app.core`
+# from the parent project (installed via the [local] extra below), so the
+# heavyweight document/translation libs don't appear here.
+dependencies = [
+    "mcp>=1.2.0",
+    "pydantic>=2.6,<3",
+]
+
+[project.optional-dependencies]
+# Local stdio mode needs the parent `app.core` package and its transitive
+# document-handling deps. Install with: `pip install -e .[local]` from this
+# directory while the parent project is on the path.
+local = [
+    "python-docx==1.1.2",
+    "python-pptx==1.0.2",
+    "pandas==2.2.3",
+    "openpyxl==3.1.5",
+    "langdetect==1.0.9",
+    "google-generativeai==0.8.3",
+    "google-cloud-storage==2.18.2",
+]
+# Remote mode just needs an HTTP client to call the upstream Flask API.
+remote = [
+    "httpx>=0.27",
+]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.23",
+    "httpx>=0.27",
+]
+
+[project.scripts]
+filetranslation-mcp-local = "filetranslation_mcp.local_server:main"
+filetranslation-mcp-remote = "filetranslation_mcp.remote_server:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

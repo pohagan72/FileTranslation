@@ -1,0 +1,18 @@
+{
+  "_comment": "Drop into ~/Library/Application Support/Claude/claude_desktop_config.json (macOS) or %APPDATA%/Claude/claude_desktop_config.json (Windows). Restart Claude Desktop after editing.",
+  "mcpServers": {
+    "filetranslation": {
+      "command": "filetranslation-mcp-local",
+      "args": [],
+      "env": {
+        "GOOGLE_API_KEY": "your-gemini-key",
+        "GEMINI_MODEL": "gemini-1.5-flash",
+        "GOOGLE_CLOUD_PROJECT": "your-gcp-project",
+        "GCS_BUCKET_NAME": "your-staging-bucket",
+        "SECRET_KEY": "any-random-string-stdio-server-doesnt-use-flask-sessions",
+        "TRANSLATION_THREADS": "8",
+        "SIGNED_URL_EXPIRY_MINUTES": "5"
+      }
+    }
+  }
+}

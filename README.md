@@ -17,9 +17,12 @@ with Google Cloud Storage as the file-staging layer.
 - Per-segment translation parallelised through a `ThreadPoolExecutor`, with
   retry + exponential backoff.
 - Direct-from-GCS downloads via signed URLs — the app never proxies bytes.
-- Two interfaces:
+- Three interfaces:
   - HTML form at `/`
   - JSON API at `/api/v1/*`
+  - **MCP server** (Model Context Protocol) for agent integration — see
+    [`mcp_server/`](mcp_server/). Same domain logic, exposed as agent tools
+    over stdio (local) or Streamable HTTP (remote).
 - `/healthz` for Cloud Run probes; `/api/v1/health` reports service status.
 - Optional API-key authentication on `POST /api/v1/translations`.
 - Every log line and HTTP response carries an `X-Request-Id` for tracing.
@@ -40,12 +43,18 @@ app/
     ├── readers/         DocumentHandler interface + per-format impls
     │                    registered via app/core/readers/registry.py
     └── storage.py       StorageBackend interface + GCSBackend
+
+mcp_server/              MCP server companion package — separate deployable;
+                         imports `app.core` for the local-stdio mode and
+                         calls `/api/v1/*` for the remote-HTTP mode.
 ```
 
 The `core/` package has no Flask or HTTP dependencies, so each piece is unit
 testable and swappable. Adding a new translation provider (OpenAI, DeepL) means
 adding one class under `providers/`; adding a new file format means adding one
-class under `readers/` and registering it.
+class under `readers/` and registering it. The same independence is what lets
+[`mcp_server/`](mcp_server/) wrap `TranslationService` as agent tools without
+re-implementing any business logic.
 
 ## Local development
 
