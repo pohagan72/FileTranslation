@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document Translation (Gemini Only)</title>
+    <title>Document Translation</title>
     <style>
         :root {
             --background-color: #ffffff;
@@ -24,7 +24,7 @@
             --button-background: #1a73e8;
             --button-hover: #1557b0;
             --warning-color: #ffc107;
-            --error-color: #dc3545; /* Keep errors visible */
+            --error-color: #dc3545;
         }
 
         body {
@@ -35,10 +35,7 @@
             transition: background-color 0.3s, color 0.3s;
         }
 
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-        }
+        .container { max-width: 600px; margin: 0 auto; }
 
         .card {
             background-color: var(--card-background);
@@ -49,15 +46,8 @@
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
 
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 5px;
-            color: var(--text-color);
-        }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; }
 
         input, select {
             width: 100%;
@@ -69,11 +59,7 @@
             color: var(--text-color);
         }
 
-         select:disabled {
-            background-color: #e9ecef;
-            color: #6c757d;
-            cursor: not-allowed;
-         }
+        select:disabled { background-color: #e9ecef; color: #6c757d; cursor: not-allowed; }
 
         button {
             padding: 10px 20px;
@@ -85,16 +71,8 @@
             width: 100%;
             font-size: 16px;
         }
-
-        button:hover {
-            background-color: var(--button-hover);
-        }
-        
-        button:disabled {
-             background-color: #cccccc;
-             cursor: not-allowed;
-        }
-
+        button:hover { background-color: var(--button-hover); }
+        button:disabled { background-color: #cccccc; cursor: not-allowed; }
 
         .message {
             margin-top: 20px;
@@ -103,22 +81,12 @@
             border: 1px solid var(--card-border);
             border-radius: 5px;
             color: var(--text-color);
-            word-break: break-word; /* Prevent long error messages from overflowing */
+            word-break: break-word;
         }
-
-        .message a {
-            color: var(--button-background);
-            text-decoration: none;
-        }
-
-        .message a:hover {
-            text-decoration: underline;
-        }
-
-        /* Add styles for specific message types if needed */
+        .message a { color: var(--button-background); text-decoration: none; }
+        .message a:hover { text-decoration: underline; }
         .message.warning { border-color: var(--warning-color); color: var(--warning-color); }
         .message.error   { border-color: var(--error-color); color: var(--error-color); }
-
     </style>
 </head>
 <body>
@@ -126,78 +94,65 @@
         <div class="card">
             <h1>Document Translation</h1>
 
-            {% if not gcs_available or not gemini_configured %}
-                 <p style="color: var(--error-color);">Configuration Error: App services are not fully configured. Please check environment variables (`GOOGLE_API_KEY`, `GEMINI_MODEL`, `GCS_BUCKET_NAME`, `GOOGLE_CLOUD_PROJECT`). File processing is disabled.</p>
+            {% if not services_ready %}
+                <p style="color: var(--error-color);">
+                    Configuration error: translation service is not available.
+                    Check <code>GOOGLE_API_KEY</code>, <code>GEMINI_MODEL</code>,
+                    <code>GCS_BUCKET_NAME</code>, and <code>GOOGLE_CLOUD_PROJECT</code>.
+                </p>
             {% endif %}
-
 
             <form method="post" enctype="multipart/form-data">
                 <div class="form-group">
                     <label for="file">Upload File (.docx, .pptx, .xlsx):</label>
-                    <input type="file" id="file" name="file" accept=".docx,.pptx,.xlsx" required {% if not gcs_available %}disabled{% endif %}>
+                    <input type="file" id="file" name="file"
+                           accept=".docx,.pptx,.xlsx" required
+                           {% if not services_ready %}disabled{% endif %}>
                 </div>
                 <div class="form-group">
                     <label for="target_language">Target Language:</label>
-                    <select id="target_language" name="target_language" required {% if not gemini_configured %}disabled{% endif %}>
+                    <select id="target_language" name="target_language" required
+                            {% if not services_ready %}disabled{% endif %}>
                         {% for lang in languages %}
                             <option value="{{ lang }}">{{ lang }}</option>
                         {% endfor %}
-                         {% if not gemini_configured %}
-                            <option value="" disabled selected>Gemini Not Configured</option>
-                         {% endif %}
                     </select>
                 </div>
-
-                <button type="submit" {% if not gcs_available or not gemini_configured %}disabled{% endif %}>Translate File</button>
+                <button type="submit" {% if not services_ready %}disabled{% endif %}>
+                    Translate File
+                </button>
             </form>
         </div>
 
         {% with messages = get_flashed_messages() %}
             {% if messages %}
                 {% for message in messages %}
-                     {# Simple check if message looks like an error/warning for styling #}
-                     {% set msg_class = '' %}
-                     {% if 'Error' in message or 'fail' in message.lower() or 'blocked' in message.lower() %}
-                         {% set msg_class = 'error' %}
-                     {% elif 'Warning' in message %}
-                         {% set msg_class = 'warning' %}
-                     {% endif %}
-                     <div class="card message {{ msg_class }}">
-                         {{ message }}
-                     </div>
+                    {% set msg_class = '' %}
+                    {% if 'Error' in message or 'fail' in message.lower() or 'blocked' in message.lower() %}
+                        {% set msg_class = 'error' %}
+                    {% elif 'Warning' in message %}
+                        {% set msg_class = 'warning' %}
+                    {% endif %}
+                    <div class="card message {{ msg_class }}">{{ message }}</div>
                 {% endfor %}
             {% endif %}
         {% endwith %}
 
-        {% if file_id %} {# Check for file_id instead of translated_file #}
+        {% if download_url %}
             <div class="card message">
-                <a href="{{ url_for('download_file', file_id=file_id) }}">Download Translated File</a>
+                <a href="{{ download_url }}">Download Translated File</a>
+                <p style="font-size: 0.85em; opacity: 0.7;">
+                    Link expires after a short period.
+                </p>
             </div>
         {% endif %}
     </div>
 
     <script>
         const prefersDarkScheme = window.matchMedia("(prefers-color-scheme: dark)");
-
-        function setTheme(theme) {
-            document.documentElement.setAttribute('data-theme', theme);
-        }
-
-        // Set initial theme
-        if (prefersDarkScheme.matches) {
-            setTheme('dark');
-        } else {
-            setTheme('light');
-        }
-
-        // Listen for changes in system preference
-        prefersDarkScheme.addEventListener('change', (e) => {
-            if (e.matches) {
-                setTheme('dark');
-            } else {
-                setTheme('light');
-            }
-        });
+        function setTheme(theme) { document.documentElement.setAttribute('data-theme', theme); }
+        setTheme(prefersDarkScheme.matches ? 'dark' : 'light');
+        prefersDarkScheme.addEventListener('change', (e) => setTheme(e.matches ? 'dark' : 'light'));
     </script>
 </body>
 </html>
