@@ -8,8 +8,10 @@ import pandas as pd
 import io
 import sys
 import uuid # Added uuid
+import logging
 from dotenv import load_dotenv
 import google.generativeai as genai
+from langdetect import detect as langdetect_detect, LangDetectException
 from werkzeug.utils import secure_filename
 from flask import get_flashed_messages
 
@@ -19,11 +21,17 @@ from google.cloud.exceptions import NotFound
 
 load_dotenv()
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
+
 app = Flask(__name__)
 # Use environment variable for secret key, fall back to random during development if none set
 app.secret_key = os.getenv("SECRET_KEY") or os.urandom(24)
 if not os.getenv("SECRET_KEY"):
-    print("WARNING: SECRET_KEY not set in .env or environment. Using a random key for development.")
+    logger.warning("SECRET_KEY not set in .env or environment. Using a random key for development.")
 
 # Session type for development (using filesystem for demonstration, not recommended for production scaling)
 # For Cloud Run, consider using a shared external session store like Redis or memcached,
@@ -49,18 +57,20 @@ GOOGLE_CLOUD_PROJECT = os.getenv("GOOGLE_CLOUD_PROJECT")
 storage_client = None
 gcs_bucket = None
 
-# Configure Google Gemini API at startup
+# Configure Google Gemini API at startup.
+# NOTE: do NOT call flash() at module import time — there is no request context yet
+# and Gunicorn workers will crash. Surface config problems via the gcs_available /
+# gemini_configured flags passed to the template instead.
 gemini_configured = False
 if GOOGLE_API_KEY:
     try:
         genai.configure(api_key=GOOGLE_API_KEY)
-        print("Google Gemini API configured successfully.")
+        logger.info("Google Gemini API configured successfully.")
         gemini_configured = True
     except Exception as e:
-        print(f"Failed to configure Google Gemini API: {e}")
-        flash("Google Gemini API configuration failed. Check your API key and internet connection.")
+        logger.error("Failed to configure Google Gemini API: %s", e)
 else:
-    flash("Google API Key not found in .env. Translation using Google Gemini is disabled.")
+    logger.warning("GOOGLE_API_KEY not set. Translation is disabled.")
 
 # Configure GCS client at startup
 gcs_available = False
@@ -71,20 +81,19 @@ if GCS_BUCKET_NAME and GOOGLE_CLOUD_PROJECT:
         gcs_bucket = storage_client.bucket(GCS_BUCKET_NAME)
         # Attempt to reload to check bucket existence and permissions
         gcs_bucket.reload()
-        print(f"Google Cloud Storage client initialized (Bucket: gs://{GCS_BUCKET_NAME}).")
+        logger.info("Google Cloud Storage client initialized (Bucket: gs://%s).", GCS_BUCKET_NAME)
         gcs_available = True
     except NotFound:
-        print(f"GCS Bucket '{GCS_BUCKET_NAME}' not found.")
-        flash(f"Error: GCS Bucket '{GCS_BUCKET_NAME}' not found. File uploads/downloads will fail.")
+        logger.error("GCS Bucket '%s' not found.", GCS_BUCKET_NAME)
         storage_client = None; gcs_bucket = None
     except Exception as e:
-        print(f"Failed to initialize GCS client: {e}")
-        flash(f"Error: Failed to initialize GCS client: {e}. File uploads/downloads will fail.")
+        logger.error("Failed to initialize GCS client: %s", e)
         storage_client = None; gcs_bucket = None
 else:
-    if not GCS_BUCKET_NAME: print("GCS_BUCKET_NAME env var not found.")
-    if not GOOGLE_CLOUD_PROJECT: print("GOOGLE_CLOUD_PROJECT env var not found.")
-    flash("GCS_BUCKET_NAME or GOOGLE_CLOUD_PROJECT not set in .env. File uploads/downloads are disabled.")
+    if not GCS_BUCKET_NAME:
+        logger.warning("GCS_BUCKET_NAME env var not set.")
+    if not GOOGLE_CLOUD_PROJECT:
+        logger.warning("GOOGLE_CLOUD_PROJECT env var not set.")
 
 LANGUAGES = ["English", "Spanish", "French", "German", "Chinese", "Japanese"]
 
@@ -96,29 +105,11 @@ def detect_language(text):
     """Detects the language of a given text."""
     if not text or not text.strip():
         return None
-
     try:
-        from langdetect import detect
-    except ImportError:
-        # Attempt to install langdetect if not found
-        try:
-            import subprocess
-            print("langdetect not found, attempting installation...")
-            subprocess.check_call([sys.executable, "-m", "pip", "install", "langdetect"])
-            from langdetect import detect
-            print("langdetect installed successfully.")
-        except Exception as e:
-            print(f"Error installing langdetect: {e}")
-            return None
-    except Exception as e:
-        print(f"Unexpected error during langdetect import: {e}")
-        return None
-
-    try:
-        # langdetect might struggle with very large text, limit for performance/stability
-        return detect(text[:10000])
-    except Exception as e:
-        print(f"Language detection error: {e}")
+        # langdetect struggles with very large text — cap for performance/stability
+        return langdetect_detect(text[:10000])
+    except LangDetectException as e:
+        logger.warning("Language detection failed: %s", e)
         return None
 
 def translate_text(text, target_lang, model_name, model_type, detected_lang=None):
