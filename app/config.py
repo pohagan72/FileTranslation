@@ -6,9 +6,15 @@ import os
 from dataclasses import dataclass, field
 from typing import List
 
-from dotenv import load_dotenv
+# python-dotenv is a dev convenience for loading a local .env file.
+# Production (Cloud Run) injects env vars directly, so the package isn't
+# required in the runtime image — fall through silently if it's absent.
+try:
+    from dotenv import load_dotenv
 
-load_dotenv()
+    load_dotenv()
+except ImportError:
+    pass
 
 
 class ConfigError(RuntimeError):
