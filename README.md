@@ -12,8 +12,7 @@ with Google Cloud Storage as the file-staging layer.
 ## Features
 
 - Translates body text, table cells, and PowerPoint text frames into one of
-  several target languages.
-- Source-language detection via `langdetect`.
+  several target languages. Source language is inferred by the LLM.
 - Per-segment translation parallelised through a `ThreadPoolExecutor`, with
   retry + exponential backoff.
 - Direct-from-GCS downloads via signed URLs — the app never proxies bytes.
@@ -37,7 +36,6 @@ app/
 ├── api/                 JSON API blueprint
 ├── web/                 HTML form blueprint
 └── core/                framework-independent domain logic
-    ├── language.py
     ├── translation_service.py
     ├── providers/       TranslationProvider interface + GeminiProvider
     ├── readers/         DocumentHandler interface + per-format impls
@@ -103,7 +101,7 @@ POST /api/v1/translations                  ← multipart upload
        body:
          file: <docx|pptx|xlsx>
          target_language: "Spanish"
-       → 201 { job_id, download_url, download_filename, detected_language }
+       → 201 { job_id, download_url, download_filename }
        → 401 if API key missing/wrong
        → 400 on bad input, 413 if upload exceeds size limit, 503 if degraded
 ```

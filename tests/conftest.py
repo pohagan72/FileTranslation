@@ -52,7 +52,7 @@ class UppercaseProvider(TranslationProvider):
     def __init__(self) -> None:
         self.calls: List[str] = []
 
-    def translate(self, text: str, target_language: str, source_language=None) -> str:
+    def translate(self, text: str, target_language: str) -> str:
         self.calls.append(text)
         return text.upper()
 

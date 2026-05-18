@@ -101,7 +101,6 @@ def create_translation():
                 "job_id": result.job_id,
                 "download_url": result.download_url,
                 "download_filename": result.download_filename,
-                "detected_language": result.detected_language,
             }
         ),
         201,

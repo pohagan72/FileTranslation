@@ -19,7 +19,6 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import IO, List, Optional
 
-from .language import detect_language
 from .providers import TranslationError, TranslationProvider
 from .readers import get_handler, supported_extensions
 from .storage import StorageBackend
@@ -36,7 +35,6 @@ class TranslationResult:
     job_id: str
     download_url: str
     download_filename: str
-    detected_language: Optional[str]
 
 
 class TranslationService:
@@ -85,12 +83,7 @@ class TranslationService:
             segments = handler.collect_segments(uploaded_stream)
             logger.info("job %s: %d segments to translate", job_id, len(segments))
 
-            sample = "\n".join(segments[:50])
-            detected_language = detect_language(sample)
-            if detected_language:
-                logger.info("job %s: detected language %s", job_id, detected_language)
-
-            translations = self._translate_all(segments, target_language, detected_language)
+            translations = self._translate_all(segments, target_language)
 
             uploaded_stream.seek(0)
             translated_stream = handler.apply_translations(uploaded_stream, translations)
@@ -113,14 +106,12 @@ class TranslationService:
             job_id=job_id,
             download_url=url,
             download_filename=translated_filename,
-            detected_language=detected_language,
         )
 
     def _translate_all(
         self,
         segments: List[str],
         target_language: str,
-        source_language: Optional[str],
     ) -> List[str]:
         if not segments:
             return []
@@ -128,7 +119,7 @@ class TranslationService:
         def translate_one(text: str) -> str:
             if not text or not text.strip():
                 return text
-            return self._translate_with_retry(text, target_language, source_language)
+            return self._translate_with_retry(text, target_language)
 
         if self._threads == 1 or len(segments) == 1:
             return [translate_one(s) for s in segments]
@@ -141,12 +132,11 @@ class TranslationService:
         self,
         text: str,
         target_language: str,
-        source_language: Optional[str],
     ) -> str:
         last_error: Optional[Exception] = None
         for attempt in range(self._max_retries + 1):
             try:
-                return self._provider.translate(text, target_language, source_language)
+                return self._provider.translate(text, target_language)
             except TranslationError as exc:
                 last_error = exc
                 if attempt == self._max_retries:

@@ -90,7 +90,6 @@ def tool_translate(
         job_id=body["job_id"],
         download_url=body["download_url"],
         download_filename=body["download_filename"],
-        detected_language=body.get("detected_language"),
         expires_in_seconds=expiry_minutes * 60,
     )
 

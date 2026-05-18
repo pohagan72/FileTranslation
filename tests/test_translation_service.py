@@ -56,7 +56,7 @@ class FlakyProvider(TranslationProvider):
         self.fail_times = fail_times
         self.attempts = 0
 
-    def translate(self, text, target_language, source_language=None):
+    def translate(self, text, target_language):
         self.attempts += 1
         if self.attempts <= self.fail_times:
             raise TranslationError("transient")

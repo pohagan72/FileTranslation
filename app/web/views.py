@@ -69,8 +69,6 @@ def index():
         flash("Translation failed. Please try again.")
         return render_template("index.html", **context), 500
 
-    if result.detected_language:
-        flash(f"Detected source language: {result.detected_language.upper()}")
     flash("Translation completed. Use the link below to download.")
     context["download_url"] = result.download_url
     return render_template("index.html", **context)

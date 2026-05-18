@@ -16,9 +16,6 @@ logger = logging.getLogger(__name__)
 class DocxHandler(DocumentHandler):
     extension = ".docx"
 
-    def extract_text(self, stream: io.BytesIO) -> str:
-        return "\n".join(self.collect_segments(stream))
-
     def collect_segments(self, stream: io.BytesIO) -> List[str]:
         stream.seek(0)
         doc = Document(stream)

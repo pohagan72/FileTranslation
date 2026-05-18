@@ -69,7 +69,6 @@ Returns:
   "job_id": "8f3a...",
   "download_url": "https://storage.googleapis.com/...",
   "download_filename": "translated_Q3-board.pptx",
-  "detected_language": "en",
   "expires_in_seconds": 300
 }
 ```

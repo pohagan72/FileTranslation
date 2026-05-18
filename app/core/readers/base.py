@@ -24,10 +24,6 @@ class DocumentHandler(ABC):
     extension: str  # e.g. ".docx" — set on subclasses
 
     @abstractmethod
-    def extract_text(self, stream: io.BytesIO) -> str:
-        """Return concatenated plain text for language detection."""
-
-    @abstractmethod
     def collect_segments(self, stream: io.BytesIO) -> List[str]:
         """Return every translatable segment, in stable document order."""
 

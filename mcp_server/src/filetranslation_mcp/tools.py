@@ -11,7 +11,7 @@ them without string drift.
 
 from __future__ import annotations
 
-from typing import Annotated, Literal, Optional, Union
+from typing import Annotated, Literal, Union
 
 from pydantic import BaseModel, Field, TypeAdapter, model_validator
 
@@ -142,9 +142,6 @@ class TranslateOutput(BaseModel):
         ..., description="Signed URL; expires after `expires_in_seconds`. Fetch promptly."
     )
     download_filename: str
-    detected_language: Optional[str] = Field(
-        None, description="Best-effort source-language guess; may be null for very short documents."
-    )
     expires_in_seconds: int = Field(
         ..., description="Lifetime of `download_url` from the moment this response was generated."
     )

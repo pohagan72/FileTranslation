@@ -59,7 +59,6 @@ class FakeService:
             job_id="job-1",
             download_url="https://example.com/signed",
             download_filename=f"translated_{original_filename}",
-            detected_language="en",
         )
 
 
