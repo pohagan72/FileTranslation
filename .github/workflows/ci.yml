@@ -28,5 +28,8 @@ jobs:
       - name: Format check (black)
         run: black --check app tests wsgi.py
 
+      - name: Type check (mypy)
+        run: mypy
+
       - name: Test (pytest)
         run: pytest -q

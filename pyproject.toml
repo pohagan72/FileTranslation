@@ -5,3 +5,12 @@ target-version = ["py312"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true   # third-party libs (pptx, docx, pandas, gcs) ship limited stubs
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+check_untyped_defs = true
+files = ["app", "wsgi.py"]

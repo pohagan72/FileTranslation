@@ -34,7 +34,7 @@ def index():
         get_flashed_messages()
         return render_template("index.html", **context)
 
-    if not services_ready:
+    if service is None:
         flash("Service is not fully configured. Check server logs.")
         return render_template("index.html", **context), 503
 

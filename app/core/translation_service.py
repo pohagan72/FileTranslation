@@ -11,14 +11,13 @@ throughput win without needing async.
 
 from __future__ import annotations
 
-import io
 import logging
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import List, Optional
+from typing import IO, List, Optional
 
 from .language import detect_language
 from .providers import TranslationError, TranslationProvider
@@ -63,7 +62,7 @@ class TranslationService:
 
     def translate_document(
         self,
-        file_stream: io.BytesIO,
+        file_stream: IO[bytes],
         original_filename: str,
         extension: str,
         target_language: str,

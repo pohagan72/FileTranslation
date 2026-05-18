@@ -55,6 +55,9 @@ class Config:
     max_content_length: int
     translation_threads: int
     signed_url_expiry_minutes: int
+    # If set, callers of POST /api/v1/translations must send X-API-Key matching
+    # this value. If None, the endpoint is open — keeps local dev frictionless.
+    api_key: str | None
     supported_languages: List[str] = field(
         default_factory=lambda: [
             "English",
@@ -96,5 +99,6 @@ def load_config() -> Config:
         debug=_env_bool("FLASK_DEBUG", False),
         max_content_length=_env_int("MAX_CONTENT_LENGTH_BYTES", 25 * 1024 * 1024),
         translation_threads=_env_int("TRANSLATION_THREADS", 8),
-        signed_url_expiry_minutes=_env_int("SIGNED_URL_EXPIRY_MINUTES", 15),
+        signed_url_expiry_minutes=_env_int("SIGNED_URL_EXPIRY_MINUTES", 5),
+        api_key=_env("API_KEY"),
     )

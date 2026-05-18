@@ -10,7 +10,7 @@ import io
 import logging
 from abc import ABC, abstractmethod
 from datetime import timedelta
-from typing import BinaryIO, Optional
+from typing import IO, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ class StorageBackend(ABC):
     """Abstract object-storage interface used by the translation service."""
 
     @abstractmethod
-    def upload(self, key: str, stream: BinaryIO, content_type: Optional[str] = None) -> None: ...
+    def upload(self, key: str, stream: IO[bytes], content_type: Optional[str] = None) -> None: ...
 
     @abstractmethod
     def download(self, key: str) -> io.BytesIO: ...
@@ -49,7 +49,7 @@ class GCSBackend(StorageBackend):
 
     def __init__(self, project: str, bucket_name: str):
         # Imported lazily so unit tests can stub the module without GCP credentials.
-        from google.cloud import storage
+        from google.cloud import storage  # type: ignore[attr-defined]
         from google.cloud.exceptions import NotFound
 
         self._NotFound = NotFound
@@ -62,7 +62,7 @@ class GCSBackend(StorageBackend):
         except NotFound as exc:
             raise StorageError(f"GCS bucket '{bucket_name}' not found") from exc
 
-    def upload(self, key: str, stream: BinaryIO, content_type: Optional[str] = None) -> None:
+    def upload(self, key: str, stream: IO[bytes], content_type: Optional[str] = None) -> None:
         blob = self._bucket.blob(key)
         try:
             blob.upload_from_file(stream, content_type=content_type, rewind=True)

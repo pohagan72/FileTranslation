@@ -1,35 +1,43 @@
 # FileTranslation
 
-AI-powered translation service for Microsoft Office documents (`.docx`, `.pptx`,
-`.xlsx`) backed by Google Gemini, designed to run on Google Cloud Run with
-Google Cloud Storage as the file-staging layer.
+AI-powered translation service for Microsoft Office documents (`.docx`,
+`.pptx`, `.xlsx`) backed by Google Gemini, designed to run on Google Cloud Run
+with Google Cloud Storage as the file-staging layer.
+
+> **Status:** demo / portfolio project. The architecture and code-quality
+> bars below are real, but a production deployment serving untrusted traffic
+> would still benefit from an async job queue (Cloud Tasks + worker), per-
+> tenant quotas, and end-to-end integration tests. See *Known limits* below.
 
 ## Features
 
-- Translates body text, table cells, and (for PowerPoint) text frames into one
-  of several target languages.
+- Translates body text, table cells, and PowerPoint text frames into one of
+  several target languages.
 - Source-language detection via `langdetect`.
-- Parallel per-segment translation with retry + exponential backoff.
-- Direct-from-GCS downloads via signed URLs — the app does not proxy file bytes.
+- Per-segment translation parallelised through a `ThreadPoolExecutor`, with
+  retry + exponential backoff.
+- Direct-from-GCS downloads via signed URLs — the app never proxies bytes.
 - Two interfaces:
   - HTML form at `/`
   - JSON API at `/api/v1/*`
-- Health endpoint at `/healthz` plus `/api/v1/health` with service status.
+- `/healthz` for Cloud Run probes; `/api/v1/health` reports service status.
+- Optional API-key authentication on `POST /api/v1/translations`.
+- Every log line and HTTP response carries an `X-Request-Id` for tracing.
 
 ## Architecture
 
 ```
 app/
-├── __init__.py          create_app() factory
+├── __init__.py          create_app() factory + request_id hook
 ├── config.py            dataclass-based env config
-├── logging.py           stdout structured logging
+├── logging_setup.py     structured logging + RequestIdFilter
 ├── api/                 JSON API blueprint
 ├── web/                 HTML form blueprint
 └── core/                framework-independent domain logic
     ├── language.py
     ├── translation_service.py
     ├── providers/       TranslationProvider interface + GeminiProvider
-    ├── readers/         DocumentHandler interface + per-format implementations
+    ├── readers/         DocumentHandler interface + per-format impls
     │                    registered via app/core/readers/registry.py
     └── storage.py       StorageBackend interface + GCSBackend
 ```
@@ -48,51 +56,76 @@ cp .env.example .env                                  # then fill in real values
 python wsgi.py
 ```
 
-Required environment variables:
+### Environment variables
 
-| Variable                     | Purpose                                                  |
-|------------------------------|----------------------------------------------------------|
-| `SECRET_KEY`                 | Flask session signing (32+ random chars)                 |
-| `GOOGLE_API_KEY`             | Gemini API key                                           |
-| `GEMINI_MODEL`               | e.g. `gemini-1.5-flash`                                  |
-| `GOOGLE_CLOUD_PROJECT`       | GCP project ID                                           |
-| `GCS_BUCKET_NAME`            | Staging bucket for uploads/translations                  |
-| `MAX_CONTENT_LENGTH_BYTES`   | Upload size limit (default 25 MiB)                       |
-| `TRANSLATION_THREADS`        | Concurrent Gemini calls (default 8)                      |
-| `SIGNED_URL_EXPIRY_MINUTES`  | Download-link lifetime (default 15)                      |
+| Variable                     | Required? | Purpose                                                |
+|------------------------------|-----------|--------------------------------------------------------|
+| `SECRET_KEY`                 | yes       | Flask session signing (32+ random chars)               |
+| `GOOGLE_API_KEY`             | yes       | Gemini API key                                         |
+| `GEMINI_MODEL`               | yes       | e.g. `gemini-1.5-flash`                                |
+| `GOOGLE_CLOUD_PROJECT`       | yes       | GCP project ID                                         |
+| `GCS_BUCKET_NAME`            | yes       | Staging bucket for uploads/translations                |
+| `API_KEY`                    | optional  | If set, `POST /api/v1/translations` requires `X-API-Key` |
+| `MAX_CONTENT_LENGTH_BYTES`   | optional  | Upload size limit (default 25 MiB)                     |
+| `TRANSLATION_THREADS`        | optional  | Concurrent Gemini calls (default 8)                    |
+| `SIGNED_URL_EXPIRY_MINUTES`  | optional  | Download-link lifetime (default 5)                     |
 
-## Running tests
+## Running checks locally
 
 ```bash
-pytest -q          # ~10 unit + route tests
-black --check .    # formatting
-flake8             # lint
+pytest -q                              # 21 unit + route tests
+black --check app tests wsgi.py        # formatting
+flake8 app tests wsgi.py               # lint
+mypy                                   # type check
 ```
 
-CI runs the same three commands on every push and pull request via
-`.github/workflows/ci.yml`.
-
-## Deployment (Cloud Run)
-
-1. Build & push the image (Artifact Registry recommended).
-2. Configure secrets in Secret Manager and reference them from the Cloud Run
-   service definition.
-3. Configure a GCS lifecycle policy on the staging bucket to delete translated
-   files after 24h — the app does not delete them inline because users may
-   still hold a signed-URL link.
-4. The service account attached to Cloud Run needs `roles/storage.objectAdmin`
-   on the bucket and must be able to sign URLs (default Cloud Run service
-   accounts can; custom ones may need `roles/iam.serviceAccountTokenCreator`).
+CI runs the same four commands on every push and pull request via
+[.github/workflows/ci.yml](.github/workflows/ci.yml).
 
 ## API
 
 ```
-GET  /healthz
-GET  /api/v1/health
-GET  /api/v1/languages
-POST /api/v1/translations
-       multipart/form-data:
+GET  /healthz                              → { status: ok }
+GET  /api/v1/health                        → service status, supported extensions
+GET  /api/v1/languages                     → { languages: [...] }
+POST /api/v1/translations                  ← multipart upload
+       headers:
+         X-API-Key: <key>                  (required if API_KEY is set)
+       body:
          file: <docx|pptx|xlsx>
          target_language: "Spanish"
        → 201 { job_id, download_url, download_filename, detected_language }
+       → 401 if API key missing/wrong
+       → 400 on bad input, 413 if upload exceeds size limit, 503 if degraded
 ```
+
+Every response includes an `X-Request-Id` header. Clients may set their own
+`X-Request-Id` to propagate trace IDs through a load balancer or CDN.
+
+## Deployment (Cloud Run)
+
+1. Build & push the image (Artifact Registry recommended).
+2. Configure secrets in Secret Manager (`SECRET_KEY`, `GOOGLE_API_KEY`,
+   `API_KEY`) and reference them from the Cloud Run service definition.
+3. Configure a GCS lifecycle policy on the staging bucket to delete translated
+   files after 24h. The app does not delete them inline because users may still
+   hold a signed-URL link.
+4. The service account attached to Cloud Run needs `roles/storage.objectAdmin`
+   on the bucket and must be able to sign URLs (default Cloud Run service
+   accounts can; custom ones may need `roles/iam.serviceAccountTokenCreator`).
+
+## Known limits
+
+Honest list of what would change for a production deployment:
+
+- **Synchronous translation:** the request blocks until translation is done.
+  A 1000-segment document holds a Gunicorn worker for the whole duration.
+  Real production would use Cloud Tasks + a background worker writing job
+  status to Firestore, with the API returning a `job_id` to poll.
+- **No per-tenant rate limiting:** the API key is single-tenant. Multiple
+  consumers would need either a per-key bucket or fronting via Cloud Endpoints.
+- **No integration tests against real Gemini/GCS:** unit tests use fakes.
+  Recording real provider responses with `vcrpy` would catch contract drift.
+- **DOCX style preservation is best-effort:** font properties from the first
+  run of a paragraph are copied to the translated text. Mixed inline styling
+  (bold word inside a sentence) is lost.

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import io
 from datetime import timedelta
-from typing import BinaryIO, Dict, List, Optional
+from typing import IO, Dict, List, Optional
 
 import pytest
 
@@ -23,7 +23,7 @@ class InMemoryStorage(StorageBackend):
         self.objects: Dict[str, bytes] = {}
         self.deleted: List[str] = []
 
-    def upload(self, key: str, stream: BinaryIO, content_type: Optional[str] = None) -> None:
+    def upload(self, key: str, stream: IO[bytes], content_type: Optional[str] = None) -> None:
         stream.seek(0)
         self.objects[key] = stream.read()
 
@@ -85,5 +85,6 @@ def test_config() -> Config:
         debug=False,
         max_content_length=1024 * 1024,
         translation_threads=1,
-        signed_url_expiry_minutes=15,
+        signed_url_expiry_minutes=5,
+        api_key=None,
     )
